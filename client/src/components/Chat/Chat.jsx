@@ -1,36 +1,67 @@
-import React,{useState, useEffect} from 'react';
+import React, { useState, useEffect } from "react";
 import queryString from 'query-string';
-import io from 'socket.io-client';  
-import './Chat.css'
-let socket ;
+import io from "socket.io-client";
 
-  const Chat = ( { location } ) => {
-    const [name, setName] = useState('');
-    const [room,setRoom] = useState('');
-    const ENDPOINT = 'localhost:5000';
-   useEffect( () => {
-        //Here we have to collect data Which user have Enter 
-        const {name , room} = queryString.parse(location.search); //location actually comes from React Router and it gives the props & with this we actually get URL Bank
-        console.log(name,room); 
+import TextContainer from '../TextContainer/TextContainer';
+import Messages from '../Messages/Messages';
+import InfoBar from '../InfoBar/InfoBar';
+import Input from '../Input/Input';
 
-        /*when we get the first connection ,
-        we will set the socket equals io and we pass the endpoint ie localhost:5000*/
+import './Chat.css';
 
-        socket = io(ENDPOINT)
-        
-        setName(name);
-        setRoom(room);
+let socket;
 
-        console.log(socket);
-        socket.emit('join', { name , room }) //we will pass the string which is recognised by the backend
-        
-        
-    }, [ENDPOINT , location.search])
+const Chat = ({ location }) => {
+  const [name, setName] = useState('');
+  const [room, setRoom] = useState('');
+  const [users, setUsers] = useState('');
+  const [message, setMessage] = useState('');
+  const [messages, setMessages] = useState([]);
+  const ENDPOINT = 'https://chat-app-real-time-react.herokuapp.com/';
+
+  useEffect(() => {
+    const { name, room } = queryString.parse(location.search);
+
+    socket = io(ENDPOINT);
+
+    setRoom(room);
+    setName(name)
+
+    socket.emit('join', { name, room }, (error) => {
+      if(error) {
+        alert(error);
+      }
+    });
+  }, [ENDPOINT, location.search]);
+  
+  useEffect(() => {
+    socket.on('message', message => {
+      setMessages(messages => [ ...messages, message ]);
+    });
     
-        return (
-        <div>
-            <h1>Chat</h1>
-        </div>
-        );
+    socket.on("roomData", ({ users }) => {
+      setUsers(users);
+    });
+}, []);
+
+  const sendMessage = (event) => {
+    event.preventDefault();
+
+    if(message) {
+      socket.emit('sendMessage', message, () => setMessage(''));
     }
-    export default Chat
+  }
+
+  return (
+    <div className="outerContainer">
+      <div className="container">
+          <InfoBar room={room} />
+          <Messages messages={messages} name={name} />
+          <Input message={message} setMessage={setMessage} sendMessage={sendMessage} />
+      </div>
+      <TextContainer users={users}/>
+    </div>
+  );
+}
+
+export default Chat;
